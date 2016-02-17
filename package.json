@@ -11,6 +11,10 @@
     "worker",
     "distributed"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:JohnSmithDr/node-remote-worker.git"
+  },
   "author": "John Smith",
   "license": "MIT",
   "dependencies": {
