@@ -1,62 +1,137 @@
 'use strict';
 
 let EventEmitter = require('events');
+
 let WebSocketServer = require('ws').Server;
+
 let RemoteWorker = require('./RemoteWorker');
+let Events = require('./Events');
+let Protocols = require('./Protocols');
 let Logger = require('./Logger');
 
+let acceptProtocols = new Set();
+acceptProtocols.add(Protocols.RemoteWorkerProtocol);
+
+let MasterEvents = Events.MasterEvents,
+    WorkerEvents = Events.WorkerEvents;
+
+/**
+ * Master is a ws server which host many workers (ws client).
+ * It dispatches tasks to workers, and controls the lifecycle of tasks.
+ */
 class Master extends EventEmitter {
 
+  /**
+   * @constructor
+   * @param opts
+   */
   constructor(opts) {
     super();
     opts = opts || {};
-    this._port = opts.port || 3000;
+    this._opts = opts;
+    this._port = opts.port;
+    this._server = opts.server;
     this._logger = opts.logger || Logger.NoLogger;
+
+    // workers (clients) are store in a set
     this._workers = new Set();
+
+    // the ws server
     this._wss = null;
-    this._init();
+
   }
 
+  /**
+   * Get workers as array.
+   * @returns {Array}
+   */
   get workers() {
     return Array.from(this._workers);
   }
 
-  _verify(ws) {
-    let url = ws.upgradeReq.url;
-    return url.startsWith('/remote-worker-protocol');
+  /**
+   * Start the server.
+   */
+  listen() {
+
+    /** setup protocol handler **/
+    this._opts.handleProtocols = (protocols, cb) => {
+      this._handleProtocols(protocols, cb);
+    };
+
+    /** setup ws server **/
+    this._wss = new WebSocketServer(this._opts);
+    this._wss.on('connection', (ws) => this._handleConnection(ws));
+
+    /** log ws server online **/
+    this._logger.info(
+      'master online at port:',
+      this._port || (this._server && this._server.address().port));
   }
 
-  _init() {
+  /**
+   * Dispatch a task to remote worker.
+   * @param remoteWorker
+   * @param task
+   */
+  dispatch(remoteWorker, task) {
+    remoteWorker.dispatch(task);
+  }
 
-    let wss = new WebSocketServer({ port: this._port });
-
-    wss.on('connection', (ws) => {
-
-      let verified = this._verify(ws);
-
-      if (!verified) {
-        ws.terminate(403);
-        return;
+  /**
+   * handle client protocol.
+   * @param protocols {Array} strings of protocols that client provides.
+   * @param cb {function} handle result callback.
+   * @private
+   */
+  _handleProtocols(protocols, cb) {
+    protocols = protocols || [];
+    protocols.forEach((pro) => {
+      if (acceptProtocols.has(pro)) {
+        return cb(true, pro);
       }
+    });
+    return cb(false);
+  }
 
+  /**
+   * handle client connection.
+   * @param ws {WebSocket}
+   * @private
+   */
+  _handleConnection(ws) {
+
+    /** handle client that connected with remote-worker-protocol **/
+    if (ws.protocol === Protocols.RemoteWorkerProtocol) {
       let worker = new RemoteWorker(ws, { logger: this._logger });
+      this._addWorker(worker);
+      return;
+    }
 
-      worker.once('error', (err) => {
-        this._logger.error(err);
-      });
+    /** without accepted protocol, the client will be terminated **/
+    ws.terminate(403);
+  }
 
-      worker.once('close', () => {
-        this._workers.delete(worker);
-        this.emit('WorkerOnline', worker);
-      });
+  /**
+   *
+   * @param remoteWorker
+   * @private
+   */
+  _addWorker(remoteWorker) {
 
-      this._workers.add(worker);
-      this.emit('WorkerOffline', worker);
-
+    /** handle worker error **/
+    remoteWorker.once(WorkerEvents.ERROR, (err) => {
+      this._logger.error(err);
     });
 
-    this.wss = wss;
-    this._logger.info('master online at port:', this._port);
+    /** handle worker disconnected **/
+    remoteWorker.once(WorkerEvents.DISCONNECTED, () => {
+      this._workers.delete(remoteWorker);
+      this.emit(MasterEvents.WORKER_OFFLINE, remoteWorker);
+    });
+
+    this._workers.add(remoteWorker);
+    this.emit(MasterEvents.WORKER_ONLINE, remoteWorker);
   }
 
 }

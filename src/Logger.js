@@ -2,6 +2,9 @@
 
 let tracer = require('tracer');
 
+/**
+ * logger which do nothing.
+ */
 module.exports.NoLogger = {
   trace: () => { },
   debug: () => { },
