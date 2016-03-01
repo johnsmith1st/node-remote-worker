@@ -1,11 +1,29 @@
 'use strict';
 
 let EventEmitter = require('events');
-let WebSocket = require('ws');
-let Logger = require('./Logger');
 
+let WebSocket = require('ws');
+
+let Task = require('./Task'),
+    TaskState = require('./TaskState'),
+    Protocols = require('./Protocols'),
+    Events = require('./Events'),
+    States = require('./States'),
+    Utils = require('./Utils'),
+    Logger = require('./Logger');
+
+let WorkerEvents = Events.WorkerEvents,
+    TaskStates = States.TaskStates;
+
+/**
+ * Worker is a ws client that process task assign by master.
+ */
 class Worker extends EventEmitter {
 
+  /**
+   * @constructor
+   * @param opts
+   */
   constructor(opts) {
     super();
     opts = opts || {};
@@ -14,67 +32,113 @@ class Worker extends EventEmitter {
     this._host = opts.host || '127.0.0.1';
     this._port = opts.port || 3000;
     this._em = new EventEmitter();
-    this._init();
+    this._tasks = new Map();
   }
 
-  handle(event, fn) {
-    this._em.on(event, (msg, done) => fn(msg, done));
-  }
+  /**
+   * Connect to master.
+   * @param cb {function}
+   */
+  connect(cb) {
 
-  end() {
-
-  }
-
-  _init() {
-    let url = `ws://${this._host}:${this._port}/remote-worker-protocol`;
-    let ws = new WebSocket(url);
+    let url = `ws://${this._host}:${this._port}/`;
+    let ws = new WebSocket(url, Protocols.RemoteWorkerProtocol);
 
     ws.on('open', () => {
-      this.emit('open');
+      this.emit(WorkerEvents.CONNECTED);
+      if (typeof cb === 'function') cb(null);
     });
 
     ws.on('error', (err) => {
       this._logger.error(err);
+      this.emit(WorkerEvents.ERROR, err);
+      if (typeof cb === 'function') cb(err);
     });
 
     ws.on('close', () => {
-      this.emit('close');
+      this.emit(WorkerEvents.DISCONNECTED);
     });
 
     ws.on('message', (data, flags) => {
-      this._onReceive(data, flags);
+      this._onMessage(data, flags);
     });
 
     this._ws = ws;
   }
 
-  _onReceive(data, flags) {
-    if (flags.binary) {
-      return;
-    }
-    try {
-      let msg = JSON.parse(data);
-      this._process(msg);
-    }
-    catch(err) {
-      this._logger.error(err);
-    }
+  /**
+   * Get worker local endpoint.
+   * @returns {string}
+   */
+  get endpoint() {
+    return this._ws && this._ws.socket
+      ? Utils.getSocketLocalEndpoint(this._ws._socket)
+      : undefined;
   }
 
-  _process(msg) {
+  /**
+   * Get worker remote endpoint.
+   * @returns {string}
+   */
+  get remoteEndpoint() {
+    return this._ws && this._ws.socket
+      ? Utils.getSocketRemoteEndpoint(this._ws._socket)
+      : undefined;
+  }
 
-    let done = (err, r) => {
-      let data = { id: msg.id };
-      if (err) data.error = err.message;
-      if (r) data.result = r;
+  _onMessage(data, flags) {
 
-      let dataStr = JSON.stringify(data);
-      this._ws.send(dataStr);
+    /** on non-string data **/
+    if (flags.binary) return;
+
+    /** on task **/
+    let task = Task.deserialize(data);
+    if (task) return this._processTask(task);
+
+    /** on task state **/
+    let taskState = TaskState.deserialize(data);
+    if (taskState) return this._processTaskState(taskState);
+
+  }
+
+  _processTask(task) {
+
+    let progress = (prog) => {
+      let state = TaskState.createProgressState(task, prog);
+      this._ws.send(TaskState.serialize(state));
     };
 
-    this._em.emit(msg.event, msg.message, done);
+    let complete = (result) => {
+      let state = TaskState.createCompleteState(task, result);
+      this._ws.send(TaskState.serialize(state));
+    };
+
+    let error = (err) => {
+      let state = TaskState.createErrorState(task, err);
+      this._ws.send(TaskState.serialize(state));
+    };
+
+    let cancelled = () => {
+      let state = TaskState.createCancelledState(task);
+      this._ws.send(TaskState.serialize(state));
+    };
+
+    task.progress = progress;
+    task.complete = complete;
+    task.error = error;
+    task.cancelled = cancelled;
+
+    this._tasks.set(task.id, task);
+    this.emit(WorkerEvents.TASK, task);
   }
 
+  _processTaskState(taskState) {
+
+    let taskId = taskState.taskId;
+    let task = this._tasks.get(taskId);
+
+    if (taskState === TaskStates.CANCEL) task.cancel();
+  }
 }
 
 module.exports = Worker;

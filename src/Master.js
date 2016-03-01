@@ -109,7 +109,7 @@ class Master extends EventEmitter {
     }
 
     /** without accepted protocol, the client will be terminated **/
-    ws.terminate(403);
+    ws.close(403);
   }
 
   /**
