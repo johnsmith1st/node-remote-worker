@@ -35,38 +35,17 @@ class Task extends EventEmitter {
     this.id = args.id || 'task:' + uuid.v4();
     this.data = Object.assign({}, args.data || {});
     this.timeout = args.timeout || 0;
+    this.onProgress = args.onProgress;
+    this.onComplete = args.onComplete;
+    this.onError = args.onError;
+    this.onTimeout = args.onTimeout;
+    this.onCancelled = args.onCancelled;
     this.phase = TaskPhases.INIT;
     this.state = TaskStates.INIT;
     this.result = null;
     this.progress = null;
     this.cancellationReason = null;
     this.isCancellationRequested = false;
-
-    let onProgress = args['onProgress'],
-        onComplete = args['onComplete'],
-        onError = args['onError'],
-        onTimeout = args['onTimeout'],
-        onCancelled = args['onCancelled'];
-
-    if (typeof onProgress === 'function') {
-      this.on(TaskEvents.PROGRESS, progress => onProgress(this, progress));
-    }
-
-    if (typeof onComplete === 'function') {
-      this.on(TaskEvents.COMPLETE, result => onComplete(this, result));
-    }
-
-    if (typeof onError === 'function') {
-      this.on(TaskEvents.ERROR, err => onError(this, err));
-    }
-
-    if (typeof onTimeout === 'function') {
-      this.on(TaskEvents.TIMEOUT, () => onTimeout(this));
-    }
-
-    if (typeof onCancelled === 'function') {
-      this.on(TaskEvents.CANCELLED, () => onCancelled(this));
-    }
 
     if (this.timeout && this.timeout > 0) {
       setTimeout(() => {
@@ -89,6 +68,7 @@ class Task extends EventEmitter {
     this.state = TaskStates.PROGRESS;
     this.phase = TaskPhases.PROCESSING;
     this.emit(TaskEvents.PROGRESS, progress);
+    if (typeof this.onProgress === 'function') this.onProgress(this, progress);
   }
 
   setCompleted(result) {
@@ -96,6 +76,7 @@ class Task extends EventEmitter {
     this.state = TaskStates.COMPLETED;
     this.phase = TaskPhases.DONE;
     this.emit(TaskEvents.COMPLETED, result);
+    if (typeof this.onComplete === 'function') this.onComplete(this, result);
   }
 
   setError(err) {
@@ -103,30 +84,37 @@ class Task extends EventEmitter {
     this.state = TaskStates.ERROR;
     this.phase = TaskPhases.DONE;
     this.emit(TaskEvents.ERROR, err);
+    if (typeof this.onError === 'function') this.onError(this, err);
   }
 
   setTimeout() {
     this.state = TaskStates.TIMEOUT;
     this.phase = TaskPhases.DONE;
     this.emit(TaskEvents.TIMEOUT);
+    if (typeof this.onTimeout === 'function') this.onTimeout(this);
   }
 
   setCancelled() {
     this.state = TaskStates.CANCELLED;
     this.phase = TaskPhases.DONE;
-    this.emit(TaskEvents.CANCEL);
+    this.emit(TaskEvents.CANCELLED);
+    if (typeof this.onCancelled === 'function') this.onCancelled(this, this.cancellationReason);
   }
 
-  updateState(s) {
+  setState(s) {
     let state = s.state;
     switch (state) {
       case TaskStates.PROGRESS:
+        console.log('on PROGRESS state');
         return this.setProgress(s.progress);
       case TaskStates.ERROR:
+        console.log('on ERROR state');
         return this.setError(Error(s.error || 'unknown error'));
       case TaskStates.COMPLETED:
+        console.log('on COMPLETED state');
         return this.setCompleted(s.result);
       case TaskStates.CANCELLED:
+        console.log('on CANCELLED state');
         return this.setCancelled();
       default:
         return;
@@ -136,7 +124,7 @@ class Task extends EventEmitter {
   static serialize(task) {
     let d = {
       task: {
-        taskId: task.id,
+        id: task.id,
         data: task.data,
         state: task.state,
         timeout: task.timeout

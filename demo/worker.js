@@ -12,19 +12,28 @@ let masterPort = Number.parseInt(argv['port'] || argv['p'] || '3000');
 // init worker
 let worker = new Worker({ host: masterHost, port: masterPort, logger: logger });
 
-worker.on('open', () => {
-  logger.info('connected to master: %s:%s', masterHost, masterPort);
+worker.on('connected', () => {
+  logger.info('connected to master:', worker.remoteEndpoint);
 });
 
-// do the work dispatched from master
-worker.handle('foo', (job, done) => {
+worker.on('disconnected', () => {
+  logger.info('disconnected from master.');
+});
 
-  logger.info('get job from master:', job);
+worker.on('error', (err) => {
+  logger.error(err);
+});
+
+// handle task dispatched from master
+worker.on('task', (task) => {
+
+  logger.info('get task from master:', task);
 
   setTimeout(() => {
-    done(null, {
-      response: 'done with ' + Date.now()
-    });
+    let result = { response: 'done with ' + Date.now() };
+    task.complete(result);
   }, 2000);
 
 });
+
+worker.connect();

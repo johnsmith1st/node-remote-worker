@@ -37,15 +37,16 @@ class RemoteWorker extends EventEmitter {
    *   onTimeout: { function(task) }
    *   onCancelled: { function(task) }
    * }
+   *
    * @returns {Task}
    *
    */
-  dispatch(task) {
+  dispatch(t) {
 
-    let task = new Task(task);
+    let task = new Task(t);
 
     /** signal cancel task **/
-    task.on(TaskStates.CANCEL, (reason) => {
+    task.once(TaskStates.CANCEL, (reason) => {
 
       let state = TaskState.createCancelState(task, reason);
       let stateStr = TaskState.serialize(state);
@@ -55,7 +56,6 @@ class RemoteWorker extends EventEmitter {
         if (err) {
           this._logger.error(err);
           task.setCancelled();
-          return;
         }
       });
 
@@ -63,7 +63,8 @@ class RemoteWorker extends EventEmitter {
 
     /** handle state changed **/
     this._em.on(task.id, (taskState) => {
-      task.updateState(taskState);
+      this._logger.debug('task state changed:', taskState);
+      task.setState(taskState);
     });
 
     /** send task to remote worker **/
@@ -82,7 +83,7 @@ class RemoteWorker extends EventEmitter {
    * @returns {string}
    */
   get endpoint() {
-    return this._ws && this._ws.socket
+    return this._ws && this._ws._socket
       ? Utils.getSocketLocalEndpoint(this._ws._socket)
       : undefined;
   }
@@ -92,7 +93,7 @@ class RemoteWorker extends EventEmitter {
    * @returns {string}
    */
   get remoteEndpoint() {
-    return this._ws && this._ws.socket
+    return this._ws && this._ws._socket
       ? Utils.getSocketRemoteEndpoint(this._ws._socket)
       : undefined;
   }
@@ -114,16 +115,13 @@ class RemoteWorker extends EventEmitter {
 
     /** handle communication **/
     ws.on('message', (data, flags) => {
-      if (flags.binary) {
-        return;
-      }
-      try {
-        let taskState = TaskState.deserialize(data);
-        if (taskState) this._em.emit(taskState.id, taskState);
-      }
-      catch(err) {
-        this._logger.error(err);
-      }
+
+      this._logger.debug('on message:', data);
+
+      if (flags.binary) return;
+
+      let taskState = TaskState.deserialize(data);
+      if (taskState) this._em.emit(taskState.taskId, taskState);
     });
   }
 

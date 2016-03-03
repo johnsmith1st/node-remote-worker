@@ -37,7 +37,7 @@ class Worker extends EventEmitter {
 
   /**
    * Connect to master.
-   * @param cb {function}
+   * @param [cb] {function}
    */
   connect(cb) {
 
@@ -46,7 +46,7 @@ class Worker extends EventEmitter {
 
     ws.on('open', () => {
       this.emit(WorkerEvents.CONNECTED);
-      if (typeof cb === 'function') cb(null);
+      if (typeof cb === 'function') cb();
     });
 
     ws.on('error', (err) => {
@@ -71,7 +71,7 @@ class Worker extends EventEmitter {
    * @returns {string}
    */
   get endpoint() {
-    return this._ws && this._ws.socket
+    return this._ws && this._ws._socket
       ? Utils.getSocketLocalEndpoint(this._ws._socket)
       : undefined;
   }
@@ -81,12 +81,14 @@ class Worker extends EventEmitter {
    * @returns {string}
    */
   get remoteEndpoint() {
-    return this._ws && this._ws.socket
+    return this._ws && this._ws._socket
       ? Utils.getSocketRemoteEndpoint(this._ws._socket)
       : undefined;
   }
 
   _onMessage(data, flags) {
+
+    this._logger.debug('on message:', data);
 
     /** on non-string data **/
     if (flags.binary) return;
@@ -103,22 +105,26 @@ class Worker extends EventEmitter {
 
   _processTask(task) {
 
-    let progress = (prog) => {
-      let state = TaskState.createProgressState(task, prog);
+    let progress = (p) => {
+      task.setProgress(p);
+      let state = TaskState.createProgressState(task, p);
       this._ws.send(TaskState.serialize(state));
     };
 
-    let complete = (result) => {
-      let state = TaskState.createCompleteState(task, result);
+    let complete = (r) => {
+      task.setCompleted(r);
+      let state = TaskState.createCompleteState(task, r);
       this._ws.send(TaskState.serialize(state));
     };
 
-    let error = (err) => {
-      let state = TaskState.createErrorState(task, err);
+    let error = (e) => {
+      task.setError(e);
+      let state = TaskState.createErrorState(task, e);
       this._ws.send(TaskState.serialize(state));
     };
 
     let cancelled = () => {
+      task.setCancelled();
       let state = TaskState.createCancelledState(task);
       this._ws.send(TaskState.serialize(state));
     };
