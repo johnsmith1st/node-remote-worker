@@ -89,8 +89,6 @@ class Worker extends EventEmitter {
 
   _onMessage(data, flags) {
 
-    this._logger.debug('on message:', data);
-
     /** on non-string data **/
     if (flags.binary) return;
 

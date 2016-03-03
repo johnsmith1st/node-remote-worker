@@ -63,7 +63,6 @@ class RemoteWorker extends EventEmitter {
 
     /** handle state changed **/
     this._em.on(task.id, (taskState) => {
-      this._logger.debug('task state changed:', taskState);
       task.setState(taskState);
     });
 
@@ -115,11 +114,7 @@ class RemoteWorker extends EventEmitter {
 
     /** handle communication **/
     ws.on('message', (data, flags) => {
-
-      this._logger.debug('on message:', data);
-
       if (flags.binary) return;
-
       let taskState = TaskState.deserialize(data);
       if (taskState) this._em.emit(taskState.taskId, taskState);
     });

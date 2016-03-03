@@ -29,13 +29,13 @@ setInterval(() => {
         logger.info('task (%s) completed with:', t.id, result);
       }
     };
-    logger.info('dispatch to worker %s, task:', worker.remoteEndpoint, t);
+    logger.info('dispatch to worker %s, task:', worker.remoteEndpoint, t.data);
 
     // dispatch task to the worker
     worker.dispatch(t);
 
   });
 
-}, 10000);
+}, 5000);
 
 master.listen();

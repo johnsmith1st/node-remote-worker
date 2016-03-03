@@ -25,13 +25,13 @@ worker.on('error', (err) => {
 });
 
 // handle task dispatched from master
-worker.on('task', (task) => {
+worker.on('task', (task, done) => {
 
-  logger.info('get task from master:', task);
+  logger.info('get task (%s) from master:', task.id, task.data);
 
   setTimeout(() => {
     let result = { response: 'done with ' + Date.now() };
-    task.complete(result);
+    done(null, result);
   }, 2000);
 
 });
