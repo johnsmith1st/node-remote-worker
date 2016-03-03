@@ -16,7 +16,7 @@ module.exports = {
 
   TaskEvents: {
     PROGRESS: 'progress',
-    COMPLETE: 'completed',
+    COMPLETE: 'complete',
     ERROR: 'error',
     TIMEOUT: 'timeout',
     CANCEL: 'cancel',

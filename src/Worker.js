@@ -13,6 +13,7 @@ let Task = require('./Task'),
     Logger = require('./Logger');
 
 let WorkerEvents = Events.WorkerEvents,
+    TaskEvents = Events.TaskEvents,
     TaskStates = States.TaskStates;
 
 /**
@@ -105,37 +106,33 @@ class Worker extends EventEmitter {
 
   _processTask(task) {
 
+    let done = (err, r) => {
+      let state;
+      if (err) {
+        task.setError(err);
+        state = TaskState.createErrorState(task, err);
+      }
+      else {
+        task.setCompleted(r);
+        state = TaskState.createCompleteState(task, r);
+      }
+      this._ws.send(TaskState.serialize(state));
+    };
+
     let progress = (p) => {
       task.setProgress(p);
       let state = TaskState.createProgressState(task, p);
       this._ws.send(TaskState.serialize(state));
     };
 
-    let complete = (r) => {
-      task.setCompleted(r);
-      let state = TaskState.createCompleteState(task, r);
-      this._ws.send(TaskState.serialize(state));
-    };
-
-    let error = (e) => {
-      task.setError(e);
-      let state = TaskState.createErrorState(task, e);
-      this._ws.send(TaskState.serialize(state));
-    };
-
-    let cancelled = () => {
+    let cancel = () => {
       task.setCancelled();
       let state = TaskState.createCancelledState(task);
       this._ws.send(TaskState.serialize(state));
     };
 
-    task.progress = progress;
-    task.complete = complete;
-    task.error = error;
-    task.cancelled = cancelled;
-
     this._tasks.set(task.id, task);
-    this.emit(WorkerEvents.TASK, task);
+    this.emit(WorkerEvents.TASK, task, done, progress, cancel);
   }
 
   _processTaskState(taskState) {
@@ -143,8 +140,11 @@ class Worker extends EventEmitter {
     let taskId = taskState.taskId;
     let task = this._tasks.get(taskId);
 
-    if (taskState === TaskStates.CANCEL) task.cancel();
+    if (taskState.state === TaskStates.CANCEL) {
+      task.emit(TaskEvents.CANCEL, taskState.reason);
+    }
   }
+
 }
 
 module.exports = Worker;

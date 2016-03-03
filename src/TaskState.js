@@ -36,8 +36,8 @@ class TaskState {
         break;
       case TaskStates.ERROR:
         var err = s.error;
-        if (typeof err === 'string') err = { error: err };
-        if (err instanceof Error) err = { error: err.message, stack: err.stack, code: err.code };
+        if (typeof err === 'string') err = { message: err };
+        if (err instanceof Error) err = { message: err.message };
         ts.error = err;
         break;
       case TaskStates.CANCEL:

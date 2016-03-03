@@ -51,8 +51,9 @@ class Master extends EventEmitter {
 
   /**
    * Start the server.
+   * @param [cb] {function}
    */
-  listen() {
+  listen(cb) {
 
     /** setup protocol handler **/
     this._opts.handleProtocols = (protocols, cb) => {
@@ -60,7 +61,7 @@ class Master extends EventEmitter {
     };
 
     /** setup ws server **/
-    this._wss = new WebSocketServer(this._opts);
+    this._wss = new WebSocketServer(this._opts, cb);
     this._wss.on('connection', (ws) => this._handleConnection(ws));
 
     /** log ws server online **/
@@ -113,7 +114,6 @@ class Master extends EventEmitter {
   }
 
   /**
-   *
    * @param remoteWorker
    * @private
    */

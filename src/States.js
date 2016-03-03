@@ -13,9 +13,9 @@ module.exports = {
   },
 
   TaskPhases: {
-    INIT: 'init',
-    PROCESSING: 'processing',
-    DONE: 'done'
+    INIT: 0,
+    PROCESSING: 1,
+    DONE: 2
   }
 
 };

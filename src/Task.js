@@ -43,7 +43,8 @@ class Task extends EventEmitter {
     this.phase = TaskPhases.INIT;
     this.state = TaskStates.INIT;
     this.result = null;
-    this.progress = null;
+    this.error = null;
+    this.progress = [];
     this.cancellationReason = null;
     this.isCancellationRequested = false;
 
@@ -64,57 +65,57 @@ class Task extends EventEmitter {
   }
 
   setProgress(progress) {
-    this.progress = progress;
+    if (this.phase === TaskPhases.DONE) return;
+    this.progress.push(progress);
     this.state = TaskStates.PROGRESS;
     this.phase = TaskPhases.PROCESSING;
-    this.emit(TaskEvents.PROGRESS, progress);
     if (typeof this.onProgress === 'function') this.onProgress(this, progress);
   }
 
   setCompleted(result) {
+    if (this.phase === TaskPhases.DONE) return;
     this.result = result;
     this.state = TaskStates.COMPLETED;
     this.phase = TaskPhases.DONE;
-    this.emit(TaskEvents.COMPLETED, result);
     if (typeof this.onComplete === 'function') this.onComplete(this, result);
   }
 
   setError(err) {
+    if (this.phase === TaskPhases.DONE) return;
     this.error = err;
     this.state = TaskStates.ERROR;
     this.phase = TaskPhases.DONE;
-    this.emit(TaskEvents.ERROR, err);
     if (typeof this.onError === 'function') this.onError(this, err);
   }
 
-  setTimeout() {
-    this.state = TaskStates.TIMEOUT;
-    this.phase = TaskPhases.DONE;
-    this.emit(TaskEvents.TIMEOUT);
-    if (typeof this.onTimeout === 'function') this.onTimeout(this);
-  }
-
   setCancelled() {
+    if (this.phase === TaskPhases.DONE) return;
     this.state = TaskStates.CANCELLED;
     this.phase = TaskPhases.DONE;
-    this.emit(TaskEvents.CANCELLED);
     if (typeof this.onCancelled === 'function') this.onCancelled(this, this.cancellationReason);
+  }
+
+  setTimeout() {
+    if (this.phase === TaskPhases.DONE) return;
+    this.state = TaskStates.TIMEOUT;
+    this.phase = TaskPhases.DONE;
+    if (typeof this.onTimeout === 'function') this.onTimeout(this);
   }
 
   setState(s) {
     let state = s.state;
     switch (state) {
       case TaskStates.PROGRESS:
-        console.log('on PROGRESS state');
+        //console.log('on PROGRESS state');
         return this.setProgress(s.progress);
       case TaskStates.ERROR:
-        console.log('on ERROR state');
-        return this.setError(Error(s.error || 'unknown error'));
+        //console.log('on ERROR state');
+        return this.setError(s.error || Error('unknown error'));
       case TaskStates.COMPLETED:
-        console.log('on COMPLETED state');
+        //console.log('on COMPLETED state');
         return this.setCompleted(s.result);
       case TaskStates.CANCELLED:
-        console.log('on CANCELLED state');
+        //console.log('on CANCELLED state');
         return this.setCancelled();
       default:
         return;
