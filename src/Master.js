@@ -86,11 +86,11 @@ class Master extends EventEmitter {
    */
   _handleProtocols(protocols, cb) {
     protocols = protocols || [];
-    protocols.forEach((pro) => {
+    for (let pro of protocols) {
       if (acceptProtocols.has(pro)) {
         return cb(true, pro);
       }
-    });
+    }
     return cb(false);
   }
 
