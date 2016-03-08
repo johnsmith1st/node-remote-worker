@@ -4,17 +4,14 @@ let EventEmitter = require('events');
 
 let WebSocket = require('ws');
 
-let Task = require('./Task'),
+let protocols = require('./protocols'),
+    Task = require('./Task'),
     TaskState = require('./TaskState'),
-    Protocols = require('./Protocols'),
-    Events = require('./Events'),
-    States = require('./States'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let WorkerEvents = Events.WorkerEvents,
-    TaskEvents = Events.TaskEvents,
-    TaskStates = States.TaskStates;
+let WorkerEvents = protocols.WorkerEvents,
+    ProcessStates = protocols.ProcessStates;
 
 /**
  * Worker is a ws client that process task assign by master.
@@ -43,23 +40,27 @@ class Worker extends EventEmitter {
   connect(cb) {
 
     let url = `ws://${this._host}:${this._port}/`;
-    let ws = new WebSocket(url, Protocols.RemoteWorkerProtocol);
+    let ws = new WebSocket(url, protocols.WorkerProtocol);
 
-    ws.on('open', () => {
+    /** handle ws open **/
+    ws.once('open', () => {
       this.emit(WorkerEvents.CONNECTED);
       if (typeof cb === 'function') cb();
     });
 
+    /** handle ws close **/
+    ws.once('close', () => {
+      this.emit(WorkerEvents.DISCONNECTED);
+    });
+
+    /** handle ws error **/
     ws.on('error', (err) => {
       this._logger.error(err);
       this.emit(WorkerEvents.ERROR, err);
       if (typeof cb === 'function') cb(err);
     });
 
-    ws.on('close', () => {
-      this.emit(WorkerEvents.DISCONNECTED);
-    });
-
+    /** handle message from ws **/
     ws.on('message', (data, flags) => {
       this._onMessage(data, flags);
     });
@@ -87,6 +88,12 @@ class Worker extends EventEmitter {
       : undefined;
   }
 
+  /**
+   * Handle incoming message.
+   * @param data {string}
+   * @param flags {*}
+   * @private
+   */
   _onMessage(data, flags) {
 
     /** on non-string data **/
@@ -94,14 +101,21 @@ class Worker extends EventEmitter {
 
     /** on task **/
     let task = Task.deserialize(data);
-    if (task) return this._processTask(task);
+    if (task) {
+      task.isFromMaster = true;
+      return this._processTask(task);
+    }
 
     /** on task state **/
     let taskState = TaskState.deserialize(data);
     if (taskState) return this._processTaskState(taskState);
-
   }
 
+  /**
+   * Handle incoming task.
+   * @param task {Task}
+   * @private
+   */
   _processTask(task) {
 
     let done = (err, r) => {
@@ -114,32 +128,49 @@ class Worker extends EventEmitter {
         task.setCompleted(r);
         state = TaskState.createCompleteState(task, r);
       }
-      this._ws.send(TaskState.serialize(state));
+      this._ws.send(TaskState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
     };
 
     let progress = (p) => {
       task.setProgress(p);
       let state = TaskState.createProgressState(task, p);
-      this._ws.send(TaskState.serialize(state));
+      this._ws.send(TaskState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
     };
 
     let cancel = () => {
       task.setCancelled();
       let state = TaskState.createCancelledState(task);
-      this._ws.send(TaskState.serialize(state));
+      this._ws.send(TaskState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
     };
 
     this._tasks.set(task.id, task);
     this.emit(WorkerEvents.TASK, task, done, progress, cancel);
   }
 
+  /**
+   * Handle incoming task state.
+   * @param taskState {TaskState}
+   * @private
+   */
   _processTaskState(taskState) {
 
-    let taskId = taskState.taskId;
-    let task = this._tasks.get(taskId);
+    let id = taskState.id;
+    let task = this._tasks.get(id);
 
-    if (taskState.state === TaskStates.CANCEL) {
-      task.emit(TaskEvents.CANCEL, taskState.reason);
+    if (task && taskState.state === ProcessStates.CANCEL) {
+      task.emit(ProcessStates.CANCEL, taskState.reason);
     }
   }
 

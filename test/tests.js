@@ -167,7 +167,7 @@ describe('node-remote-worker', function() {
             delay: 1000
           },
           onComplete: () => reject('should not be completed'),
-          onError: (t, err) => resolve({ task: t, error: err })
+          onError: (ctx, err) => resolve({ task: ctx, error: err })
         };
 
         /** dispatch task from master to worker **/

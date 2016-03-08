@@ -2,18 +2,27 @@
 
 let EventEmitter = require('events');
 
-let Events = require('./Events'),
-    States = require('./States'),
+let protocols = require('./protocols'),
     Task = require('./Task'),
     TaskState = require('./TaskState'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let WorkerEvents = Events.WorkerEvents,
-    TaskStates = States.TaskStates;
+let WorkerEvents = protocols.WorkerEvents,
+    ProcessEvents = protocols.ProcessEvents;
 
+/**
+ * Worker endpoint host by master server.
+ * @extends {EventEmitter}
+ */
 class RemoteWorker extends EventEmitter {
 
+  /**
+   * @constructor
+   * @param ws {*} ws.WebSocket
+   * @param opts {*}
+   * @param [opts.logger] logger to write log
+   */
   constructor(ws, opts) {
     super();
     opts = opts || {};
@@ -25,32 +34,25 @@ class RemoteWorker extends EventEmitter {
 
   /**
    * Dispatch a task to remote worker.
-   *
-   * @param task {*}
-   *
-   * {
-   *   data: {object}
-   *   timeout: {number}
-   *   onProgress: { function(task, progress) }
-   *   onCompleted: { function(task, result) }
-   *   onError: { function(task, error) }
-   *   onTimeout: { function(task) }
-   *   onCancelled: { function(task) }
-   * }
-   *
+   * @param t {object}
+   * @param t.data {object}
+   * @param [t.timeout] {number}
+   * @param [t.onProgress] {function(task, progress)}
+   * @param [t.onCompleted] {function(task, result)}
+   * @param [t.onError] {function(task, error)}
+   * @param [t.onTimeout] {function(task)}
+   * @param [t.onCancelled] {function(task)}
    * @returns {Task}
-   *
    */
   dispatch(t) {
 
     let task = new Task(t);
 
     /** signal cancel task **/
-    task.once(TaskStates.CANCEL, (reason) => {
+    task.once(ProcessEvents.CANCEL, (reason) => {
 
       let state = TaskState.createCancelState(task, reason);
       let stateStr = TaskState.serialize(state);
-
       /** send cancel state to remote worker **/
       this._ws.send(stateStr, (err) => {
         if (err) {
@@ -116,7 +118,7 @@ class RemoteWorker extends EventEmitter {
     ws.on('message', (data, flags) => {
       if (flags.binary) return;
       let taskState = TaskState.deserialize(data);
-      if (taskState) this._em.emit(taskState.taskId, taskState);
+      if (taskState) this._em.emit(taskState.id, taskState);
     });
   }
 
