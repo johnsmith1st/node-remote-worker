@@ -72,6 +72,16 @@ class Client extends EventEmitter {
   }
 
   /**
+   * Close client.
+   */
+  close() {
+    if (this._ws) {
+      this._ws.close();
+      this._ws = null;
+    }
+  }
+
+  /**
    * Get worker local endpoint.
    * @type {string}
    */
@@ -107,6 +117,7 @@ class Client extends EventEmitter {
   publish(c) {
 
     let command = new Command(c);
+    command._pubState = 1;
 
     /** on cancel task signal **/
     command.once(ProcessEvents.CANCEL, (reason) => {

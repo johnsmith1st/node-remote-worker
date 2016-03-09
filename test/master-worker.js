@@ -14,6 +14,15 @@ describe('master-worker', function() {
 
   let master, worker;
 
+  let tasks = {
+    TEST_COMPLETE: 'complete',
+    TEST_COMPLETE_WITH_PROGRESS: 'complete_with_progress',
+    TEST_END_WITH_ERR: 'end_with_error',
+    TEST_CANCEL_BY_MASTER: 'cancel_by_master',
+    TEST_CANCEL_BY_CLIENT: 'cancel_by_client',
+    TEST_TIMEOUT: 'timeout'
+  };
+
   before(function(done) {
 
     this.timeout(10 * 1000);
@@ -26,8 +35,46 @@ describe('master-worker', function() {
 
       /** start up worker **/
       worker = new Worker({ port: 3000 });
-      worker.connect(() => {
 
+      /** setup worker handlers **/
+
+      worker.handle(tasks.TEST_COMPLETE, (task, done) => {
+        let d = task['data'];
+        setTimeout(() => done(null, d.result), d.delay || 0);
+      });
+
+      worker.handle(tasks.TEST_COMPLETE_WITH_PROGRESS, (task, done, progress) => {
+        let d = task['data'], p = 0, hInterval;
+        hInterval = setInterval(() => {
+          p += 25;
+          progress(p + '%');
+          if (p == 100) {
+            done(null, d.result);
+            clearInterval(hInterval);
+          }
+        }, 500);
+      });
+
+      worker.handle(tasks.TEST_END_WITH_ERR, (task, done) => {
+        let d = task['data'];
+        setTimeout(() => done(d.error), d.delay || 0);
+      });
+
+      worker.handle(tasks.TEST_CANCEL_BY_MASTER, (task, done, progress, cancel) => {
+        task.on('cancel', (reason) => {
+          cancel(reason);
+        });
+      });
+
+      worker.handle(tasks.TEST_CANCEL_BY_CLIENT, (task, done, progress, cancel) => {
+        setTimeout(() => cancel('cancel by worker'), 500);
+      });
+
+      worker.handle(tasks.TEST_TIMEOUT, (task, done) => {
+        setTimeout(() => done('OK'), 3000);
+      });
+
+      worker.connect(() => {
         console.log('worker startup');
         done();
       });
@@ -36,11 +83,12 @@ describe('master-worker', function() {
 
   });
 
-  beforeEach(function() {
-    worker.removeAllListeners('task');
+  after(function() {
+    worker.close();
+    master.close();
   });
 
-  it('should work like a charm', function(done) {
+  it('should work', function(done) {
     done();
   });
 
@@ -48,26 +96,14 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done) => {
-
-      let d = task.data;
-
-      setTimeout(() => done(null, d.result), d.delay || 0);
-
-    });
-
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_COMPLETE,
         data: { result: 'foo', delay: 1000 },
-        onComplete: (t, result) => {
-          resolve({ task: t, result: result });
-        },
-        onError: (t, err) => {
-          reject(err);
-        }
+        onComplete: (ctx, result) => resolve({ task: ctx, result: result }),
+        onError: (ctx, err) => reject(err)
       };
 
       /** dispatch task from master to worker **/
@@ -90,39 +126,17 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    let px = [];
-
-    /** setup task handler for worker **/
-    worker.on('task', (task, done, progress) => {
-
-      let d = task.data, prog = 0, hInterval;
-
-      hInterval = setInterval(() => {
-        prog += 25;
-        progress(prog + '%');
-
-        if (prog == 100) {
-          done(null, d.result);
-          clearInterval(hInterval);
-        }
-      }, 500);
-
-    });
+    let px = [], rx = { foo: 'foo', bar: 'bar' };
 
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
-        data: { result: 'foo' },
-        onComplete: (t, result) => {
-          resolve({ task: t, result: result });
-        },
-        onProgress: (t, p) => {
-          px.push(p);
-        },
-        onError: (t, err) => {
-          reject(err);
-        }
+        type: tasks.TEST_COMPLETE_WITH_PROGRESS,
+        data: { result: rx },
+        onComplete: (ctx, result) => resolve({ task: ctx, result: result }),
+        onProgress: (ctx, p) => px.push(p),
+        onError: (ctx, err) => reject(err)
       };
 
       /** dispatch task from master to worker **/
@@ -133,8 +147,8 @@ describe('master-worker', function() {
 
     return pro
       .then(r => {
-        r.result.should.equal('foo');
-        r.task.result.should.equal('foo');
+        r.result.should.deep.equal(rx);
+        r.task.result.should.deep.equal(rx);
         r.task.state.should.equal('completed');
         r.task.phase.should.equal(2);
         r.task.progress.should.deep.equal([ '25%', '50%', '75%', '100%' ]);
@@ -147,19 +161,11 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done) => {
-
-      let d = task.data;
-
-      setTimeout(() => done(d.error), d.delay || 0);
-
-    });
-
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_END_WITH_ERR,
         data: {
           error: 'task should end with error',
           delay: 1000
@@ -201,22 +207,14 @@ describe('master-worker', function() {
       code: '500'
     };
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done) => {
-
-      let d = task.data;
-
-      setTimeout(() => done(d.error), d.delay || 0);
-
-    });
-
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_END_WITH_ERR,
         data: { error: err, delay: 1000 },
         onComplete: () => reject('should not be completed'),
-        onError: (t, err) => resolve({ task: t, error: err })
+        onError: (ctx, err) => resolve({ task: ctx, error: err })
       };
 
       /** dispatch task from master to worker **/
@@ -240,19 +238,14 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done, progress, cancel) => {
-      task.on('cancel', (reason) => {
-        cancel(reason);
-      });
-    });
 
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_CANCEL_BY_MASTER,
         onComplete: () => reject('should not be completed'),
-        onCancelled: (t) => resolve(t)
+        onCancelled: (ctx) => resolve(ctx)
       };
 
       /** dispatch task from master to worker **/
@@ -276,17 +269,13 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done, progress, cancel) => {
-      setTimeout(() => cancel('cancel by worker'), 500);
-    });
-
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_CANCEL_BY_CLIENT,
         onComplete: () => reject('should not be completed'),
-        onCancelled: (t) => resolve(t)
+        onCancelled: (ctx) => resolve(ctx)
       };
 
       /** dispatch task from master to worker **/
@@ -307,18 +296,14 @@ describe('master-worker', function() {
 
     this.timeout(10 * 1000);
 
-    /** setup task handler for worker **/
-    worker.on('task', (task, done) => {
-      setTimeout(() => done('OK?'), 3000);
-    });
-
     let pro = new Promise((resolve, reject) => {
 
       /** prepare task **/
       let t = {
+        type: tasks.TEST_TIMEOUT,
         timeout: 2000,
         onComplete: () => reject('should not be completed'),
-        onTimeout: (t) => resolve(t)
+        onTimeout: (ctx) => resolve(ctx)
       };
 
       /** dispatch task from master to worker **/

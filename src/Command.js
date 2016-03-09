@@ -12,7 +12,7 @@ class Command extends Process {
    * @constructor
    * @param args {object}
    * @param args.type {string} command type
-   * @param args.params {*} command params
+   * @param [args.params] {*} command params
    * @param [args.onProgress] {function(command, progress)} command progress callback
    * @param [args.onComplete] {function(command, result)} command complete callback
    * @param [args.onError] {function(command, error)} command error callback

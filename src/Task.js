@@ -11,6 +11,7 @@ class Task extends Process {
   /**
    * @constructor
    * @param args {object}
+   * @param args.type {string} task type
    * @param [args.data] {object} task data
    * @param [args.timeout] {object} set task timeout
    * @param [args.onProgress] {function(task, progress)} task progress callback
@@ -22,6 +23,7 @@ class Task extends Process {
   constructor(args) {
     args = args || {};
     super(args);
+    this.type = args.type;
     this.data = Object.assign({}, args.data || {});
   }
 
@@ -34,6 +36,7 @@ class Task extends Process {
     let d = {
       Task: {
         id: task.id,
+        type: task.type,
         data: task.data,
         state: task.state,
         timeout: task.timeout

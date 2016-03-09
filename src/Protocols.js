@@ -16,7 +16,8 @@ module.exports = {
   ClientEvents: {
     CONNECTED: 'connected',
     DISCONNECTED: 'disconnected',
-    ERROR: 'error'
+    ERROR: 'error',
+    COMMAND: 'command'
   },
 
   WorkerEvents: {

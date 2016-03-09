@@ -10,18 +10,17 @@ let Promise = require('bluebird');
 let Master = require('..').Master;
 let Client = require('..').Client;
 
-describe.only('master-client', function() {
+describe('master-client', function() {
 
   let master, client;
 
   let cmd = {
-    COMPLETE: 'complete',
-    COMPLETE_WITH_PROGRESS: 'complete_with_progress',
-    END_WITH_ERR: 'end_with_error',
-    END_WITH_COMPLEX_ERR: 'end_with_complex_error',
-    CANCEL_BY_MASTER: 'cancel_by_master',
-    CANCEL_BY_CLIENT: 'cancel_by_client',
-    TIMEOUT: 'timeout'
+    TEST_COMPLETE: 'complete',
+    TEST_COMPLETE_WITH_PROGRESS: 'complete_with_progress',
+    TEST_END_WITH_ERR: 'end_with_error',
+    TEST_CANCEL_BY_MASTER: 'cancel_by_master',
+    TEST_CANCEL_BY_CLIENT: 'cancel_by_client',
+    TEST_TIMEOUT: 'timeout'
   };
 
   before(function(done) {
@@ -33,12 +32,12 @@ describe.only('master-client', function() {
 
     /** handle commands **/
 
-    master.execute(cmd.COMPLETE, (cmd, done) => {
+    master.execute(cmd.TEST_COMPLETE, (cmd, done) => {
       let pa = cmd['params'];
       setTimeout(() => done(null, pa.result), pa.delay || 0);
     });
 
-    master.execute(cmd.COMPLETE_WITH_PROGRESS, (cmd, done, progress) => {
+    master.execute(cmd.TEST_COMPLETE_WITH_PROGRESS, (cmd, done, progress) => {
 
       let p = 0, pa = cmd['params'], hInterval;
 
@@ -53,28 +52,23 @@ describe.only('master-client', function() {
 
     });
 
-    master.execute(cmd.END_WITH_ERR, (cmd, done) => {
+    master.execute(cmd.TEST_END_WITH_ERR, (cmd, done) => {
       let pa = cmd['params'];
       setTimeout(() => done(pa.error), pa.delay || 0);
     });
 
-    master.execute(cmd.END_WITH_COMPLEX_ERR, (cmd, done) => {
-      let pa = cmd['params'];
-      setTimeout(() => done(pa.error), pa.delay || 0);
-    });
-
-    master.execute(cmd.CANCEL_BY_MASTER, (cmd, done, progress, cancel) => {
+    master.execute(cmd.TEST_CANCEL_BY_MASTER, (cmd, done, progress, cancel) => {
       setTimeout(() => cancel('cancel by master'), 500);
     });
 
-    master.execute(cmd.CANCEL_BY_CLIENT, (cmd, done, progress, cancel) => {
+    master.execute(cmd.TEST_CANCEL_BY_CLIENT, (cmd, done, progress, cancel) => {
       cmd.on('cancel', (reason) => {
         cancel(reason);
       });
     });
 
-    master.execute(cmd.TIMEOUT, (cmd, done) => {
-      setTimeout(() => done('OK?'), 3000);
+    master.execute(cmd.TEST_TIMEOUT, (cmd, done) => {
+      setTimeout(() => done('OK'), 3000);
     });
 
     master.listen(() => {
@@ -92,6 +86,11 @@ describe.only('master-client', function() {
 
   });
 
+  after(function() {
+    client.close();
+    master.close();
+  });
+
   it('should work', function(done) {
     done();
   });
@@ -104,7 +103,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.COMPLETE,
+        type: cmd.TEST_COMPLETE,
         params: { result: 'foo', delay: 1000 },
         onComplete: (ctx, result) => resolve({ command: ctx, result: result }),
         onError: (ctx, err) => reject(err)
@@ -135,7 +134,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.COMPLETE_WITH_PROGRESS,
+        type: cmd.TEST_COMPLETE_WITH_PROGRESS,
         params: { result: rx },
         onComplete: (ctx, result) => resolve({ command: ctx, result: result }),
         onProgress: (ctx, p) => px.push(p),
@@ -167,7 +166,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.END_WITH_ERR,
+        type: cmd.TEST_END_WITH_ERR,
         params: {
           error: 'task should end with error',
           delay: 1000
@@ -209,7 +208,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.END_WITH_COMPLEX_ERR,
+        type: cmd.TEST_END_WITH_ERR,
         params: { error: err, delay: 1000 },
         onComplete: () => reject('should not be completed'),
         onError: (ctx, err) => resolve({ command: ctx, error: err })
@@ -239,7 +238,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.CANCEL_BY_MASTER,
+        type: cmd.TEST_CANCEL_BY_MASTER,
         onComplete: () => reject('should not be completed'),
         onCancelled: (ctx) => resolve(ctx)
       };
@@ -265,7 +264,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.CANCEL_BY_CLIENT,
+        type: cmd.TEST_CANCEL_BY_CLIENT,
         onComplete: () => reject('should not be completed'),
         onCancelled: (ctx) => resolve(ctx)
       };
@@ -293,7 +292,7 @@ describe.only('master-client', function() {
 
       /** prepare command **/
       let c = {
-        type: cmd.TIMEOUT,
+        type: cmd.TEST_TIMEOUT,
         timeout: 2000,
         onComplete: () => reject('should not be completed'),
         onTimeout: (ctx) => resolve(ctx)

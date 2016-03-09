@@ -47,12 +47,14 @@ class RemoteWorker extends EventEmitter {
   dispatch(t) {
 
     let task = new Task(t);
+    task._pubState = 1;
 
     /** signal cancel task **/
     task.once(ProcessEvents.CANCEL, (reason) => {
 
       let state = TaskState.createCancelState(task, reason);
       let stateStr = TaskState.serialize(state);
+
       /** send cancel state to remote worker **/
       this._ws.send(stateStr, (err) => {
         if (err) {

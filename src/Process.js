@@ -36,7 +36,7 @@ class Process extends EventEmitter {
     this.progress = [];
     this.cancellationReason = null;
     this.isCancellationRequested = false;
-    this.isFromMaster = false;
+    this._pubState = 0;
 
     /** set callback handlers **/
     this.onProgress = args.onProgress;
@@ -92,7 +92,7 @@ class Process extends EventEmitter {
 
     /** emit completed event **/
     if (typeof this.onComplete === 'function') this.onComplete(this, result);
-    else this.emit(ProcessEvents.COMPLETE, result);
+    else this.emit(ProcessEvents.TEST_COMPLETE, result);
   }
 
   /**
@@ -107,10 +107,10 @@ class Process extends EventEmitter {
 
     /** emit error event **/
     if (typeof this.onError === 'function') {
-      this.onError(this, err);
+      return this.onError(this, err);
     }
-    else if (this.isFromMaster === false) {
-      this.emit(ProcessEvents.ERROR, err);
+    if (this._pubState === 1) {
+      return this.emit(ProcessEvents.ERROR, err);
     }
   }
 
@@ -146,16 +146,16 @@ class Process extends EventEmitter {
     let state = s.state;
     switch (state) {
       case ProcessStates.PROGRESS:
-        console.log('set async process state: PROGRESS');
+        //console.log('set async process state: PROGRESS');
         return this.setProgress(s.progress);
       case ProcessStates.ERROR:
-        console.log('set async process state: ERROR');
+        //console.log('set async process state: ERROR');
         return this.setError(s.error || Error('unknown error'));
       case ProcessStates.COMPLETED:
-        console.log('set async process state: COMPLETED');
+        //console.log('set async process state: COMPLETED');
         return this.setCompleted(s.result);
       case ProcessStates.CANCELLED:
-        console.log('set async process state: CANCELLED');
+        //console.log('set async process state: CANCELLED');
         return this.setCancelled();
       default:
         return;

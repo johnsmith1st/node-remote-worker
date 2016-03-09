@@ -86,6 +86,16 @@ class Master extends EventEmitter {
   }
 
   /**
+   * Close master server.
+   */
+  close() {
+    if (this._wss) {
+      this._wss.close();
+      this._wss = null;
+    }
+  }
+
+  /**
    * Dispatch a task to remote worker.
    * @param remoteWorker
    * @param task

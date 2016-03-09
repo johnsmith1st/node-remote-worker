@@ -117,44 +117,50 @@ class RemoteClient extends EventEmitter {
    */
   _processCommand(cmd) {
 
-    let handler = this._master.handler(cmd.type);
-
-    if (typeof handler !== 'function') return;
-
     let done = (err, r) => {
       let state;
       if (err) {
-        cmd.state = ProcessStates.ERROR;
-        cmd.phase = ProcessPhases.DONE;
+        cmd.setError(err);
         state = CommandState.createErrorState(cmd, err);
       }
       else {
-        cmd.state = ProcessStates.COMPLETED;
-        cmd.phase = ProcessPhases.DONE;
+        cmd.setCompleted(r);
         state = CommandState.createCompleteState(cmd, r);
       }
-      this._ws.send(CommandState.serialize(state));
+      this._ws.send(CommandState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
       this._commands.delete(cmd.id);
     };
 
     let progress = (p) => {
-      cmd.state = ProcessStates.PROGRESS;
-      cmd.phase = ProcessPhases.PROCESSING;
+      cmd.setProgress(p);
       let state = CommandState.createProgressState(cmd, p);
-      this._ws.send(CommandState.serialize(state));
-      this._commands.delete(cmd.id);
+      this._ws.send(CommandState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
     };
 
     let cancel = () => {
-      cmd.state = ProcessStates.CANCELLED;
-      cmd.phase = ProcessPhases.DONE;
+      cmd.setCancelled();
       let state = CommandState.createCancelledState(cmd);
-      this._ws.send(CommandState.serialize(state));
+      this._ws.send(CommandState.serialize(state), (err) => {
+        if (err) {
+          this._logger.error(err);
+        }
+      });
       this._commands.delete(cmd.id);
     };
 
     this._commands.set(cmd.id, cmd);
-    handler(cmd, done, progress, cancel);
+
+    let handler = this._master.handler(cmd.type);
+    if (typeof handler === 'function') handler(cmd, done, progress, cancel);
+    this.emit(ClientEvents.COMMAND, cmd, done, progress, cancel);
   }
 
   /**

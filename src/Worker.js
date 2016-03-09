@@ -31,6 +31,7 @@ class Worker extends EventEmitter {
     this._port = opts.port || 3000;
     this._em = new EventEmitter();
     this._tasks = new Map();
+    this._taskHandlers = new Map();
   }
 
   /**
@@ -69,8 +70,18 @@ class Worker extends EventEmitter {
   }
 
   /**
+   * Close worker.
+   */
+  close() {
+    if (this._ws) {
+      this._ws.close();
+      this._ws = null;
+    }
+  }
+
+  /**
    * Get worker local endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get endpoint() {
     return this._ws && this._ws._socket
@@ -80,12 +91,22 @@ class Worker extends EventEmitter {
 
   /**
    * Get worker remote endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get remoteEndpoint() {
     return this._ws && this._ws._socket
       ? Utils.getSocketRemoteEndpoint(this._ws._socket)
       : undefined;
+  }
+
+  /**
+   * Register task handler.
+   * @param task {string}
+   * @param handler {function(task, done, progress, cancel)}
+   */
+  handle(task, handler) {
+    if (typeof handler !== 'function') return;
+    this._taskHandlers.set(task, handler);
   }
 
   /**
@@ -102,7 +123,7 @@ class Worker extends EventEmitter {
     /** on task **/
     let task = Task.deserialize(data);
     if (task) {
-      task.isFromMaster = true;
+      task._pubState = true;
       return this._processTask(task);
     }
 
@@ -133,6 +154,7 @@ class Worker extends EventEmitter {
           this._logger.error(err);
         }
       });
+      this._tasks.delete(task.id);
     };
 
     let progress = (p) => {
@@ -156,6 +178,9 @@ class Worker extends EventEmitter {
     };
 
     this._tasks.set(task.id, task);
+
+    let handler = this._taskHandlers.get(task.type);
+    if (handler) handler(task, done, progress, cancel);
     this.emit(WorkerEvents.TASK, task, done, progress, cancel);
   }
 
