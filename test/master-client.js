@@ -75,7 +75,7 @@ describe('master-client', function() {
 
       console.log('master startup');
 
-      /** start up worker **/
+      /** start up client **/
       client = new Client({ port: 3000 });
       client.connect(() => {
         console.log('client startup');
