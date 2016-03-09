@@ -272,7 +272,7 @@ describe('master-worker', function() {
       });
   });
 
-  it('should be ok to cancel task by worker', function () {
+  it('should be ok to cancel task by worker', function() {
 
     this.timeout(10 * 1000);
 

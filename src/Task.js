@@ -59,7 +59,7 @@ class Task extends Process {
   }
 
   /**
-   * @returns {string}
+   * @type {string}
    * @override
    */
   get className() {

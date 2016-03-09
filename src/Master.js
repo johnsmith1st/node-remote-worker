@@ -50,7 +50,7 @@ class Master extends EventEmitter {
 
   /**
    * Get all clients as an array.
-   * @returns {Array}
+   * @type {Array<RemoteClient>}
    */
   get clients() {
     return Array.from(this._clients);
@@ -58,7 +58,7 @@ class Master extends EventEmitter {
 
   /**
    * Get all workers as an array.
-   * @returns {Array}
+   * @type {Array<RemoteWorker>}
    */
   get workers() {
     return Array.from(this._workers);

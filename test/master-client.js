@@ -257,7 +257,7 @@ describe.only('master-client', function() {
       });
   });
 
-  it('should be ok to cancel the command by client', function () {
+  it('should be ok to cancel the command by client', function() {
 
     this.timeout(10 * 1000);
 

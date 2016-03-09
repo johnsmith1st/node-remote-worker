@@ -163,7 +163,7 @@ class Process extends EventEmitter {
   }
 
   /**
-   * @returns {string}
+   * @type {string}
    */
   get className() {
     return Process.name;

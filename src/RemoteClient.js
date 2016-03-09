@@ -39,7 +39,7 @@ class RemoteClient extends EventEmitter {
 
   /**
    * Get client local endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get endpoint() {
     return this._ws && this._ws._socket
@@ -49,7 +49,7 @@ class RemoteClient extends EventEmitter {
 
   /**
    * Get client remote endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get remoteEndpoint() {
     return this._ws && this._ws._socket

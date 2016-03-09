@@ -81,7 +81,7 @@ class RemoteWorker extends EventEmitter {
 
   /**
    * Get worker local endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get endpoint() {
     return this._ws && this._ws._socket
@@ -91,7 +91,7 @@ class RemoteWorker extends EventEmitter {
 
   /**
    * Get worker remote endpoint.
-   * @returns {string}
+   * @type {string}
    */
   get remoteEndpoint() {
     return this._ws && this._ws._socket
