@@ -71,7 +71,7 @@ describe('master-worker', function() {
       });
 
       worker.handle(tasks.TEST_TIMEOUT, (task, done) => {
-        setTimeout(() => done('OK'), 3000);
+        setTimeout(() => done('OK'), 10000);
       });
 
       worker.connect(() => {

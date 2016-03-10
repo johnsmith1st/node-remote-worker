@@ -63,8 +63,8 @@ class RemoteClient extends EventEmitter {
    * @param data {*}
    */
   notify(event, data) {
-    let e = new Event(event, data);
-    let d = Event.serialize(e);
+    let e = new Notification(event, data);
+    let d = Notification.serialize(e);
     this._ws.send(d, (err) => {
       if (err) {
         this._logger.error(err);

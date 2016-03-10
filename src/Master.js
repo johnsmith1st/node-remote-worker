@@ -105,6 +105,15 @@ class Master extends EventEmitter {
   }
 
   /**
+   * Notify all client with event.
+   * @param event {string}
+   * @param data {*}
+   */
+  notify(event, data) {
+    this.clients.forEach(c => c.notify(event, data));
+  }
+
+  /**
    * Register command handler.
    * @param cmd {string}
    * @param handler {function(command, done, progress, cancel)}

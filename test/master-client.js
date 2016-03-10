@@ -68,7 +68,7 @@ describe('master-client', function() {
     });
 
     master.execute(cmd.TEST_TIMEOUT, (cmd, done) => {
-      setTimeout(() => done('OK'), 3000);
+      setTimeout(() => done('OK'), 10000);
     });
 
     master.listen(() => {
@@ -308,6 +308,21 @@ describe('master-client', function() {
         c.state.should.equal('timeout');
         c.phase.should.equal(2);
       });
+
+  });
+
+  it('should receive notification from master', function(done) {
+
+    this.timeout(10 * 1000);
+
+    let d = { foo: 'foo', bar: 'bar' };
+
+    client.onNotification('FOO_EVENT', (data) => {
+      data.should.deep.equal(d);
+      done();
+    });
+
+    master.notify('FOO_EVENT', d);
 
   });
 

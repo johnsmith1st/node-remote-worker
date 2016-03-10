@@ -152,6 +152,16 @@ class Client extends EventEmitter {
   }
 
   /**
+   * Register notification handler.
+   * @param event {string}
+   * @param handler {function(data)}
+   */
+  onNotification(event, handler) {
+    if (typeof handler !== 'function') return;
+    this._em.on('Notification:' + event, handler);
+  }
+
+  /**
    * Handle incoming message.
    * @param data {string}
    * @param flags {*}
@@ -177,7 +187,7 @@ class Client extends EventEmitter {
    * @private
    */
   _processNotification(n) {
-    this.emit(n.event, n.data);
+    this._em.emit('Notification:' + n.event, n.data);
   }
 
   /**
