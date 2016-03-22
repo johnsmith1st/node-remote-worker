@@ -2,11 +2,11 @@
 
 let EventEmitter = require('events');
 let uuid = require('uuid');
-let protocols = require('./protocols');
+let Protocols = require('./Protocols');
 
-let ProcessEvents = protocols.ProcessEvents,
-    ProcessStates = protocols.ProcessStates,
-    ProcessPhases = protocols.ProcessPhases;
+let ProcessEvents = Protocols.ProcessEvents,
+    ProcessStates = Protocols.ProcessStates,
+    ProcessPhases = Protocols.ProcessPhases;
 
 /**
  * @extends {EventEmitter}

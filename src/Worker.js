@@ -4,14 +4,14 @@ let EventEmitter = require('events');
 
 let WebSocket = require('ws');
 
-let protocols = require('./protocols'),
+let Protocols = require('./Protocols'),
     Task = require('./Task'),
     TaskState = require('./TaskState'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let WorkerEvents = protocols.WorkerEvents,
-    ProcessStates = protocols.ProcessStates;
+let WorkerEvents = Protocols.WorkerEvents,
+    ProcessStates = Protocols.ProcessStates;
 
 /**
  * Worker is a ws client that process task assign by master.
@@ -41,7 +41,7 @@ class Worker extends EventEmitter {
   connect(cb) {
 
     let url = `ws://${this._host}:${this._port}/`;
-    let ws = new WebSocket(url, protocols.WorkerProtocol);
+    let ws = new WebSocket(url, Protocols.WorkerProtocol);
 
     /** handle ws open **/
     ws.once('open', () => {

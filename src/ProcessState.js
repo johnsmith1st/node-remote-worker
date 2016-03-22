@@ -1,6 +1,6 @@
 'use strict';
 
-let ProcessStates = require('./protocols').ProcessStates;
+let ProcessStates = require('./Protocols').ProcessStates;
 
 class ProcessState {
 

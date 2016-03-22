@@ -2,14 +2,14 @@
 
 let EventEmitter = require('events');
 
-let protocols = require('./protocols'),
+let Protocols = require('./Protocols'),
     Task = require('./Task'),
     TaskState = require('./TaskState'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let WorkerEvents = protocols.WorkerEvents,
-    ProcessEvents = protocols.ProcessEvents;
+let WorkerEvents = Protocols.WorkerEvents,
+    ProcessEvents = Protocols.ProcessEvents;
 
 /**
  * Worker endpoint host by master server.

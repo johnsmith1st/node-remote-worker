@@ -2,17 +2,17 @@
 
 let EventEmitter = require('events');
 
-let protocols = require('./protocols'),
+let Protocols = require('./Protocols'),
     Command = require('./Command'),
     CommandState = require('./CommandState'),
     Notification = require('./Notification'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let ClientEvents = protocols.ClientEvents,
-    ProcessEvents = protocols.ProcessEvents,
-    ProcessStates = protocols.ProcessStates,
-    ProcessPhases = protocols.ProcessPhases;
+let ClientEvents = Protocols.ClientEvents,
+    ProcessEvents = Protocols.ProcessEvents,
+    ProcessStates = Protocols.ProcessStates,
+    ProcessPhases = Protocols.ProcessPhases;
 
 /**
  * Client endpoint host by master server.

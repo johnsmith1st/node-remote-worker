@@ -4,15 +4,15 @@ let EventEmitter = require('events');
 
 let WebSocket = require('ws');
 
-let protocols = require('./protocols'),
+let Protocols = require('./Protocols'),
     Command = require('./Command'),
     CommandState = require('./CommandState'),
     Notification = require('./Notification'),
     Utils = require('./Utils'),
     Logger = require('./Logger');
 
-let ClientEvents = protocols.ClientEvents,
-    ProcessEvents = protocols.ProcessEvents;
+let ClientEvents = Protocols.ClientEvents,
+    ProcessEvents = Protocols.ProcessEvents;
 
 /**
  * Client is a ws client that sends commands to master.
@@ -43,7 +43,7 @@ class Client extends EventEmitter {
   connect(cb) {
 
     let url = `ws://${this._host}:${this._port}/`;
-    let ws = new WebSocket(url, protocols.ClientProtocol);
+    let ws = new WebSocket(url, Protocols.ClientProtocol);
 
     /** handle ws open **/
     ws.once('open', () => {

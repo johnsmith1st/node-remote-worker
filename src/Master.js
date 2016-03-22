@@ -7,15 +7,15 @@ let WebSocketServer = require('ws').Server;
 let RemoteClient = require('./RemoteClient');
 let RemoteWorker = require('./RemoteWorker');
 let Logger = require('./Logger');
-let protocols = require('./protocols');
+let Protocols = require('./Protocols');
 
 let acceptProtocols = new Set();
-acceptProtocols.add(protocols.ClientProtocol);
-acceptProtocols.add(protocols.WorkerProtocol);
+acceptProtocols.add(Protocols.ClientProtocol);
+acceptProtocols.add(Protocols.WorkerProtocol);
 
-let MasterEvents = protocols.MasterEvents,
-    ClientEvents = protocols.ClientEvents,
-    WorkerEvents = protocols.WorkerEvents;
+let MasterEvents = Protocols.MasterEvents,
+    ClientEvents = Protocols.ClientEvents,
+    WorkerEvents = Protocols.WorkerEvents;
 
 /**
  * Master is a ws server which host many clients and workers (ws clients).
@@ -155,14 +155,14 @@ class Master extends EventEmitter {
   _handleConnection(ws) {
 
     /** handle ws that connected with client protocol **/
-    if (ws.protocol === protocols.ClientProtocol) {
+    if (ws.protocol === Protocols.ClientProtocol) {
       let client = new RemoteClient(ws, this, { logger: this._logger });
       this._addClient(client);
       return;
     }
 
     /** handle ws that connected with worker protocol **/
-    if (ws.protocol === protocols.WorkerProtocol) {
+    if (ws.protocol === Protocols.WorkerProtocol) {
       let worker = new RemoteWorker(ws, { logger: this._logger });
       this._addWorker(worker);
       return;
